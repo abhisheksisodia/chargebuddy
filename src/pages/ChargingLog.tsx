@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { ChargingCostChart } from "@/components/charging/ChargingCostChart";
 import { format } from "date-fns";
 
@@ -35,6 +35,11 @@ const ChargingLog = () => {
   const { data: sessions, refetch } = useQuery({
     queryKey: ["charging-sessions"],
     queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        throw new Error("Not authenticated");
+      }
+
       const { data, error } = await supabase
         .from("charging_sessions")
         .select("*")
@@ -53,14 +58,23 @@ const ChargingLog = () => {
     e.preventDefault();
 
     try {
-      const { error } = await supabase.from("charging_sessions").insert([
-        {
-          date,
-          location,
-          energy_added: Number(energyAdded),
-          cost: Number(cost),
-        },
-      ]);
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to add charging sessions",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase.from("charging_sessions").insert({
+        date,
+        location,
+        energy_added: Number(energyAdded),
+        cost: Number(cost),
+        user_id: user.user.id,
+      });
 
       if (error) throw error;
 
