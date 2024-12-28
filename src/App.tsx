@@ -12,16 +12,27 @@ import Profile from "./pages/Profile";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import { supabase } from "@/integrations/supabase/client";
 
 const queryClient = new QueryClient();
 
-// Temporary auth state management until we integrate with Supabase
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsAuthenticated(!!token);
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return { isAuthenticated };
