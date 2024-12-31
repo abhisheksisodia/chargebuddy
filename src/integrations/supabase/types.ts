@@ -105,6 +105,39 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          battery_capacity: number
+          created_at: string
+          id: string
+          make: string
+          model: string
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          battery_capacity: number
+          created_at?: string
+          id?: string
+          make: string
+          model: string
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          battery_capacity?: number
+          created_at?: string
+          id?: string
+          make?: string
+          model?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
