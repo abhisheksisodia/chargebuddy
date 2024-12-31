@@ -1,10 +1,17 @@
 import { Card } from "@/components/ui/card";
 import { Battery, Car, Wallet } from "lucide-react";
+import OnboardingCarousel from "@/components/dashboard/OnboardingCarousel";
 
 const Dashboard = () => {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+      
+      {/* Onboarding Carousel */}
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4">Get Started</h2>
+        <OnboardingCarousel />
+      </Card>
       
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
