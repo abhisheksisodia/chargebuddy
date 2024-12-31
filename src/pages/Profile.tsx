@@ -24,6 +24,7 @@ const profileFormSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
+// Update the schema to make all required fields non-optional
 const vehicleFormSchema = z.object({
   make: z.string().min(1, "Make is required"),
   model: z.string().min(1, "Model is required"),
@@ -85,7 +86,6 @@ const Profile = () => {
     },
   });
 
-  // Vehicle form
   const vehicleForm = useForm<VehicleFormValues>({
     resolver: zodResolver(vehicleFormSchema),
     defaultValues: {
@@ -134,8 +134,12 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
+      // Explicitly construct the vehicle data object with all required fields
       const vehicleData: TablesInsert<"vehicles"> = {
-        ...values,
+        make: values.make,
+        model: values.model,
+        year: values.year,
+        battery_capacity: values.battery_capacity,
         user_id: user.id,
       };
 
