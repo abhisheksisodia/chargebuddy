@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Trash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { TablesInsert } from "@/integrations/supabase/types";
 
 const profileFormSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -133,10 +134,12 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const { error } = await supabase.from("vehicles").insert({
+      const vehicleData: TablesInsert<"vehicles"> = {
         ...values,
         user_id: user.id,
-      });
+      };
+
+      const { error } = await supabase.from("vehicles").insert(vehicleData);
 
       if (error) throw error;
     },
