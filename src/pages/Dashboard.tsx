@@ -1,17 +1,60 @@
 import { Card } from "@/components/ui/card";
 import { Battery, Car, Wallet } from "lucide-react";
 import OnboardingCarousel from "@/components/dashboard/OnboardingCarousel";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
+  // Query to check if user has a vehicle
+  const { data: hasVehicle } = useQuery({
+    queryKey: ['hasVehicle'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('vehicles')
+        .select('id')
+        .limit(1);
+      return !!data?.length;
+    },
+  });
+
+  // Query to check if user has any trips
+  const { data: hasTrips } = useQuery({
+    queryKey: ['hasTrips'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('trips')
+        .select('id')
+        .limit(1);
+      return !!data?.length;
+    },
+  });
+
+  // Query to check if user has any charging sessions
+  const { data: hasChargingSessions } = useQuery({
+    queryKey: ['hasChargingSessions'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('charging_sessions')
+        .select('id')
+        .limit(1);
+      return !!data?.length;
+    },
+  });
+
+  // Show carousel only if any step is incomplete
+  const showCarousel = !hasVehicle || !hasTrips || !hasChargingSessions;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
       
-      {/* Onboarding Carousel */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Get Started</h2>
-        <OnboardingCarousel />
-      </Card>
+      {/* Onboarding Carousel - only show if steps are incomplete */}
+      {showCarousel && (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Get Started</h2>
+          <OnboardingCarousel />
+        </Card>
+      )}
       
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
