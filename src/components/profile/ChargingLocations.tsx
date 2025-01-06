@@ -18,6 +18,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, MapPin, Plus, Trash, Sun, Snowflake, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Database } from "@/integrations/supabase/types";
+
+type ChargingLocation = Database["public"]["Tables"]["charging_locations"]["Row"];
+type InsertChargingLocation = Database["public"]["Tables"]["charging_locations"]["Insert"];
 
 const locationFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -32,13 +36,6 @@ const locationFormSchema = z.object({
 });
 
 type LocationFormValues = z.infer<typeof locationFormSchema>;
-
-type ChargingLocation = LocationFormValues & {
-  id: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-};
 
 const ChargingLocations = () => {
   const { toast } = useToast();
@@ -78,7 +75,7 @@ const ChargingLocations = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const locationData: Omit<ChargingLocation, 'id' | 'created_at' | 'updated_at'> = {
+      const locationData: InsertChargingLocation = {
         ...values,
         user_id: user.id,
       };

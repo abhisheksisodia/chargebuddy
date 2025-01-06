@@ -17,6 +17,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Database } from "@/integrations/supabase/types";
+
+type Vehicle = Database["public"]["Tables"]["vehicles"]["Row"];
+type InsertVehicle = Database["public"]["Tables"]["vehicles"]["Insert"];
 
 const vehicleFormSchema = z.object({
   make: z.string().min(1, "Make is required"),
@@ -31,13 +35,6 @@ const vehicleFormSchema = z.object({
 });
 
 type VehicleFormValues = z.infer<typeof vehicleFormSchema>;
-
-type Vehicle = VehicleFormValues & {
-  id: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-};
 
 const VehicleManager = () => {
   const { toast } = useToast();
@@ -72,7 +69,7 @@ const VehicleManager = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const vehicleData: Omit<Vehicle, 'id' | 'created_at' | 'updated_at'> = {
+      const vehicleData: InsertVehicle = {
         ...values,
         user_id: user.id,
       };
