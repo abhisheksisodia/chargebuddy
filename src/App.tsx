@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import ChargingLog from "./pages/ChargingLog";
 import TripLog from "./pages/TripLog";
 import Profile from "./pages/Profile";
+import Stations from "./pages/Stations";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -52,6 +53,16 @@ const App = () => {
                 <ProtectedRoute>
                   <Layout>
                     <TripLog />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/stations"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Stations />
                   </Layout>
                 </ProtectedRoute>
               }

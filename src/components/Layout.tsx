@@ -37,6 +37,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <Link to="/dashboard">Dashboard</Link>
             <Link to="/charging">Charging</Link>
             <Link to="/trips">Trips</Link>
+            <Link to="/stations">Stations</Link>
             <Link to="/profile">Profile</Link>
             <Button 
               variant="ghost" 
