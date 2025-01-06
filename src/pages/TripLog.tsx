@@ -1,21 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useToast } from "@/components/ui/use-toast";
-import { Card } from "@/components/ui/card";
-import { Car, Route, Zap } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { TripStats } from "@/components/trips/TripStats";
+import { TripForm } from "@/components/trips/TripForm";
+import { TripHistory } from "@/components/trips/TripHistory";
 
 interface TripFormData {
   start_location: string;
@@ -108,166 +97,22 @@ const TripLog = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 max-w-[1200px] mx-auto">
       <h1 className="text-2xl font-bold tracking-tight">Trip Log</h1>
 
-      {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="p-2 bg-primary-100 rounded-full">
-              <Route className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Distance</p>
-              <p className="text-2xl font-bold">{totalDistance.toFixed(1)} km</p>
-            </div>
-          </div>
-        </Card>
+      <TripStats
+        totalDistance={totalDistance}
+        totalEnergy={totalEnergy}
+        averageEfficiency={averageEfficiency}
+      />
 
-        <Card className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="p-2 bg-primary-100 rounded-full">
-              <Zap className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Energy</p>
-              <p className="text-2xl font-bold">{totalEnergy.toFixed(1)} kWh</p>
-            </div>
-          </div>
-        </Card>
+      <TripForm
+        formData={formData}
+        setFormData={setFormData}
+        onSubmit={handleSubmit}
+      />
 
-        <Card className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="p-2 bg-primary-100 rounded-full">
-              <Car className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Avg. Efficiency</p>
-              <p className="text-2xl font-bold">{averageEfficiency} kWh/km</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Trip Form */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Log New Trip</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="start_location">Start Location</Label>
-              <Input
-                id="start_location"
-                value={formData.start_location}
-                onChange={(e) =>
-                  setFormData({ ...formData, start_location: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="end_location">End Location</Label>
-              <Input
-                id="end_location"
-                value={formData.end_location}
-                onChange={(e) =>
-                  setFormData({ ...formData, end_location: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) =>
-                  setFormData({ ...formData, date: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="distance">Distance (km)</Label>
-              <Input
-                id="distance"
-                type="number"
-                step="0.1"
-                value={formData.distance}
-                onChange={(e) =>
-                  setFormData({ ...formData, distance: parseFloat(e.target.value) })
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="energy_used">Energy Used (kWh)</Label>
-              <Input
-                id="energy_used"
-                type="number"
-                step="0.1"
-                value={formData.energy_used}
-                onChange={(e) =>
-                  setFormData({ ...formData, energy_used: parseFloat(e.target.value) })
-                }
-                required
-              />
-            </div>
-          </div>
-          <Button type="submit" className="w-full md:w-auto">
-            Log Trip
-          </Button>
-        </form>
-      </Card>
-
-      {/* Trips Table */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Trip History</h2>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Start Location</TableHead>
-                <TableHead>End Location</TableHead>
-                <TableHead>Distance (km)</TableHead>
-                <TableHead>Energy Used (kWh)</TableHead>
-                <TableHead>Efficiency (kWh/km)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    Loading trips...
-                  </TableCell>
-                </TableRow>
-              ) : trips?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    No trips logged yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                trips?.map((trip) => (
-                  <TableRow key={trip.id}>
-                    <TableCell>{format(new Date(trip.date), "PPP")}</TableCell>
-                    <TableCell>{trip.start_location}</TableCell>
-                    <TableCell>{trip.end_location}</TableCell>
-                    <TableCell>{trip.distance.toFixed(1)}</TableCell>
-                    <TableCell>{trip.energy_used.toFixed(1)}</TableCell>
-                    <TableCell>
-                      {(trip.energy_used / trip.distance).toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+      <TripHistory trips={trips} isLoading={isLoading} />
     </div>
   );
 };
