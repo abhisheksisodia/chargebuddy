@@ -33,6 +33,13 @@ const locationFormSchema = z.object({
 
 type LocationFormValues = z.infer<typeof locationFormSchema>;
 
+type ChargingLocation = LocationFormValues & {
+  id: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const ChargingLocations = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -71,7 +78,7 @@ const ChargingLocations = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const locationData = {
+      const locationData: Omit<ChargingLocation, 'id' | 'created_at' | 'updated_at'> = {
         ...values,
         user_id: user.id,
       };

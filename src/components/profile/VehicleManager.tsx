@@ -32,6 +32,13 @@ const vehicleFormSchema = z.object({
 
 type VehicleFormValues = z.infer<typeof vehicleFormSchema>;
 
+type Vehicle = VehicleFormValues & {
+  id: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const VehicleManager = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -65,7 +72,7 @@ const VehicleManager = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const vehicleData = {
+      const vehicleData: Omit<Vehicle, 'id' | 'created_at' | 'updated_at'> = {
         ...values,
         user_id: user.id,
       };
