@@ -6,60 +6,186 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       charging_locations: {
         Row: {
-          id: string
-          user_id: string
-          name: string
           address: string
-          peak_rate: number | null
-          off_peak_rate: number | null
-          super_off_peak_rate: number | null
-          summer_rate: number | null
-          winter_rate: number | null
-          notes: string | null
-          is_default: boolean | null
           created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          notes: string | null
+          off_peak_rate: number | null
+          peak_rate: number | null
+          summer_rate: number | null
+          super_off_peak_rate: number | null
+          updated_at: string
+          user_id: string
+          winter_rate: number | null
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          notes?: string | null
+          off_peak_rate?: number | null
+          peak_rate?: number | null
+          summer_rate?: number | null
+          super_off_peak_rate?: number | null
+          updated_at?: string
+          user_id: string
+          winter_rate?: number | null
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          notes?: string | null
+          off_peak_rate?: number | null
+          peak_rate?: number | null
+          summer_rate?: number | null
+          super_off_peak_rate?: number | null
+          updated_at?: string
+          user_id?: string
+          winter_rate?: number | null
+        }
+        Relationships: []
+      }
+      charging_sessions: {
+        Row: {
+          cost: number
+          created_at: string
+          date: string
+          energy_added: number
+          id: string
+          location: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cost: number
+          created_at?: string
+          date: string
+          energy_added: number
+          id?: string
+          location: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cost?: number
+          created_at?: string
+          date?: string
+          energy_added?: number
+          id?: string
+          location?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          name: string
-          address: string
-          peak_rate?: number | null
-          off_peak_rate?: number | null
-          super_off_peak_rate?: number | null
-          summer_rate?: number | null
-          winter_rate?: number | null
-          notes?: string | null
-          is_default?: boolean | null
+          avatar_url?: string | null
           created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          address?: string
-          peak_rate?: number | null
-          off_peak_rate?: number | null
-          super_off_peak_rate?: number | null
-          summer_rate?: number | null
-          winter_rate?: number | null
-          notes?: string | null
-          is_default?: boolean | null
+          avatar_url?: string | null
           created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
           updated_at?: string
         }
+        Relationships: []
       }
-      charging_sessions: ChargingSessionsTable
-      profiles: ProfilesTable
-      trips: TripsTable
-      vehicles: VehiclesTable
+      trips: {
+        Row: {
+          created_at: string
+          date: string
+          distance: number
+          end_location: string
+          energy_used: number
+          id: string
+          start_location: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          distance: number
+          end_location: string
+          energy_used: number
+          id?: string
+          start_location: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          distance?: number
+          end_location?: string
+          energy_used?: number
+          id?: string
+          start_location?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          battery_capacity: number
+          created_at: string
+          id: string
+          make: string
+          model: string
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          battery_capacity: number
+          created_at?: string
+          id?: string
+          make: string
+          model: string
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          battery_capacity?: number
+          created_at?: string
+          id?: string
+          make?: string
+          model?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -76,135 +202,99 @@ export interface Database {
   }
 }
 
-interface ChargingSessionsTable {
-  Row: {
-    id: string
-    user_id: string
-    date: string
-    location: string
-    energy_added: number
-    cost: number
-    created_at: string
-    updated_at: string
-  }
-  Insert: {
-    id?: string
-    user_id: string
-    date: string
-    location: string
-    energy_added: number
-    cost: number
-    created_at?: string
-    updated_at?: string
-  }
-  Update: {
-    id?: string
-    user_id?: string
-    date?: string
-    location?: string
-    energy_added?: number
-    cost?: number
-    created_at?: string
-    updated_at?: string
-  }
-}
+type PublicSchema = Database[Extract<keyof Database, "public">]
 
-interface ProfilesTable {
-  Row: {
-    id: string
-    email: string | null
-    full_name: string | null
-    avatar_url: string | null
-    created_at: string
-    updated_at: string
-  }
-  Insert: {
-    id: string
-    email?: string | null
-    full_name?: string | null
-    avatar_url?: string | null
-    created_at?: string
-    updated_at?: string
-  }
-  Update: {
-    id?: string
-    email?: string | null
-    full_name?: string | null
-    avatar_url?: string | null
-    created_at?: string
-    updated_at?: string
-  }
-}
+export type Tables<
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
-interface TripsTable {
-  Row: {
-    id: string
-    user_id: string
-    start_location: string
-    end_location: string
-    date: string
-    distance: number
-    energy_used: number
-    created_at: string
-    updated_at: string
-  }
-  Insert: {
-    id?: string
-    user_id: string
-    start_location: string
-    end_location: string
-    date: string
-    distance: number
-    energy_used: number
-    created_at?: string
-    updated_at?: string
-  }
-  Update: {
-    id?: string
-    user_id?: string
-    start_location?: string
-    end_location?: string
-    date?: string
-    distance?: number
-    energy_used?: number
-    created_at?: string
-    updated_at?: string
-  }
-}
+export type TablesInsert<
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
-interface VehiclesTable {
-  Row: {
-    id: string
-    user_id: string
-    make: string
-    model: string
-    year: number
-    battery_capacity: number
-    created_at: string
-    updated_at: string
-  }
-  Insert: {
-    id?: string
-    user_id: string
-    make: string
-    model: string
-    year: number
-    battery_capacity: number
-    created_at?: string
-    updated_at?: string
-  }
-  Update: {
-    id?: string
-    user_id?: string
-    make?: string
-    model?: string
-    year?: number
-    battery_capacity?: number
-    created_at?: string
-    updated_at?: string
-  }
-}
+export type TablesUpdate<
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
-export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"]
-export type TablesInsert<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Insert"]
-export type TablesUpdate<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Update"]
+export type Enums<
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof PublicSchema["CompositeTypes"]
+    | { schema: keyof Database },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
