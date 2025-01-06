@@ -1,5 +1,8 @@
 **# Project Overview**
 ChargeBuddy - EV Owners application that allows users to track their EV charging costs, find nearby charging stations, and log trips.
+<img width="1117" alt="Screenshot 2025-01-06 at 2 11 21 PM" src="https://github.com/user-attachments/assets/aea21a7a-f36e-4557-a5b9-900cf073cdb5" />
+<img width="1275" alt="Screenshot 2025-01-06 at 2 10 47 PM" src="https://github.com/user-attachments/assets/a1fd78b7-9529-42b9-976e-d468b9e7d847" />
+<img width="1470" alt="Screenshot 2025-01-06 at 2 07 51 PM" src="https://github.com/user-attachments/assets/ce2a975c-8b7b-437c-bc0d-cf5e31069877" />
 
 **# Core Functionalities**
 1. Dashboard:
