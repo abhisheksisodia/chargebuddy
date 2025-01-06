@@ -14,6 +14,8 @@ interface Station {
     Town: string;
     StateOrProvince: string;
     Postcode: string;
+    Latitude: number;
+    Longitude: number;
   };
   UsageCost: string;
   Connections: Array<{
@@ -30,35 +32,63 @@ const Stations = () => {
   const { toast } = useToast();
 
   const fetchStations = async (searchLocation: string) => {
-    console.log("Fetching stations for location:", searchLocation);
-    const response = await fetch(
-      `https://api.openchargemap.io/v3/poi/?output=json&countrycode=US&maxresults=10&compact=true&verbose=false&latitude=${searchLocation}&distance=10&distanceunit=miles`,
-      {
-        headers: {
-          "X-API-Key": "74d7f928-32d3-4c06-9427-ef65d2c9c016", // This is a public demo key
-        },
+    try {
+      // First, get coordinates for the entered location using a geocoding service
+      const geocodeResponse = await fetch(
+        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(searchLocation)}&key=24f9315f0c3340b0ac433948f462d7d3`
+      );
+      
+      if (!geocodeResponse.ok) {
+        throw new Error("Failed to geocode location");
       }
-    );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch stations");
+      const geocodeData = await geocodeResponse.json();
+      console.log("Geocode response:", geocodeData);
+
+      if (!geocodeData.results || geocodeData.results.length === 0) {
+        throw new Error("Location not found");
+      }
+
+      const { lat, lng } = geocodeData.results[0].geometry;
+      console.log("Coordinates:", { lat, lng });
+
+      // Now fetch charging stations using the coordinates
+      const stationsResponse = await fetch(
+        `https://api.openchargemap.io/v3/poi/?output=json&countrycode=US&maxresults=10&compact=true&verbose=false&latitude=${lat}&longitude=${lng}&distance=10&distanceunit=miles`,
+        {
+          headers: {
+            "X-API-Key": "74d7f928-32d3-4c06-9427-ef65d2c9c016",
+          },
+        }
+      );
+
+      if (!stationsResponse.ok) {
+        throw new Error("Failed to fetch stations");
+      }
+
+      const data = await stationsResponse.json();
+      console.log("Stations data:", data);
+      return data;
+    } catch (error) {
+      console.error("Error in fetchStations:", error);
+      throw error;
     }
-
-    return response.json();
   };
 
   const { data: stations, isLoading } = useQuery({
     queryKey: ["stations", location],
     queryFn: () => fetchStations(location),
     enabled: searchInitiated && !!location,
-    onError: (error) => {
-      console.error("Error fetching stations:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch charging stations. Please try again.",
-        variant: "destructive",
-      });
-    },
+    meta: {
+      onError: (error: Error) => {
+        console.error("Error fetching stations:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch charging stations. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
   });
 
   const handleSearch = () => {
@@ -79,7 +109,7 @@ const Stations = () => {
       
       <div className="flex gap-4 mb-8">
         <Input
-          placeholder="Enter ZIP code or city"
+          placeholder="Enter location (e.g., city, address)"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           className="max-w-md"
