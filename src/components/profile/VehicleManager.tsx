@@ -65,9 +65,14 @@ const VehicleManager = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
+      const vehicleData = {
+        ...values,
+        user_id: user.id,
+      };
+
       const { error } = await supabase
         .from("vehicles")
-        .insert({ ...values, user_id: user.id });
+        .insert(vehicleData);
 
       if (error) throw error;
     },

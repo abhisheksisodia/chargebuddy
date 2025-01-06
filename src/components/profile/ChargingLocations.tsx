@@ -71,9 +71,14 @@ const ChargingLocations = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
+      const locationData = {
+        ...values,
+        user_id: user.id,
+      };
+
       const { error } = await supabase
         .from("charging_locations")
-        .insert({ ...values, user_id: user.id });
+        .insert(locationData);
 
       if (error) throw error;
     },
