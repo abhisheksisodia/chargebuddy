@@ -76,7 +76,15 @@ const ChargingLocations = () => {
       if (!user) throw new Error("No user found");
 
       const locationData: InsertChargingLocation = {
-        ...values,
+        name: values.name,
+        address: values.address,
+        peak_rate: values.peak_rate,
+        off_peak_rate: values.off_peak_rate,
+        super_off_peak_rate: values.super_off_peak_rate,
+        summer_rate: values.summer_rate,
+        winter_rate: values.winter_rate,
+        notes: values.notes,
+        is_default: values.is_default,
         user_id: user.id,
       };
 

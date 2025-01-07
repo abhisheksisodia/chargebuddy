@@ -70,7 +70,10 @@ const VehicleManager = () => {
       if (!user) throw new Error("No user found");
 
       const vehicleData: InsertVehicle = {
-        ...values,
+        make: values.make,
+        model: values.model,
+        year: values.year,
+        battery_capacity: values.battery_capacity,
         user_id: user.id,
       };
 
