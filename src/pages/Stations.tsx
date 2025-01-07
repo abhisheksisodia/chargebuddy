@@ -58,7 +58,7 @@ const Stations = () => {
         `https://api.openchargemap.io/v3/poi/?output=json&countrycode=US&maxresults=10&compact=true&verbose=false&latitude=${lat}&longitude=${lng}&distance=10&distanceunit=miles`,
         {
           headers: {
-            "X-API-Key": "74d7f928-32d3-4c06-9427-ef65d2c9c016",
+            "X-API-Key": "09dd6a7c-5fa2-443d-a761-6d9e1591943e",
           },
         }
       );
