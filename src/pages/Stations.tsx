@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, DollarSign, Plug, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Station {
   ID: number;
@@ -33,17 +34,17 @@ const Stations = () => {
 
   const fetchStations = async (searchLocation: string) => {
     try {
-      // First, get coordinates for the entered location using a geocoding service
-      const geocodeResponse = await fetch(
-        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(searchLocation)}&key=24f9315f0c3340b0ac433948f462d7d3`
-      );
-      
-      if (!geocodeResponse.ok) {
+      // First, get coordinates using our Edge Function
+      const { data: geocodeData, error: geocodeError } = await supabase.functions.invoke('geocode', {
+        body: { location: searchLocation }
+      });
+
+      console.log('Geocode response from Edge Function:', geocodeData);
+
+      if (geocodeError) {
+        console.error('Geocode error:', geocodeError);
         throw new Error("Failed to geocode location");
       }
-
-      const geocodeData = await geocodeResponse.json();
-      console.log("Geocode response:", geocodeData);
 
       if (!geocodeData.results || geocodeData.results.length === 0) {
         throw new Error("Location not found");
