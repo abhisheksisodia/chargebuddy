@@ -27,14 +27,15 @@ interface Station {
 const Stations = () => {
   const [searchInitiated, setSearchInitiated] = useState(false);
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [searchRadius, setSearchRadius] = useState<number>(50);
   const { toast } = useToast();
 
-  const fetchStations = async (lat: number, lng: number) => {
+  const fetchStations = async (lat: number, lng: number, radius: number) => {
     try {
-      console.log("Fetching stations for coordinates:", { lat, lng });
+      console.log("Fetching stations for coordinates:", { lat, lng, radius });
       
       const stationsResponse = await fetch(
-        `https://api.openchargemap.io/v3/poi/?output=json&countrycode=US&maxresults=10&compact=true&verbose=false&latitude=${lat}&longitude=${lng}&distance=10&distanceunit=miles`,
+        `https://api.openchargemap.io/v3/poi/?output=json&countrycode=US&maxresults=10&compact=true&verbose=false&latitude=${lat}&longitude=${lng}&distance=${radius}&distanceunit=KM`,
         {
           headers: {
             "X-API-Key": "09dd6a7c-5fa2-443d-a761-6d9e1591943e",
@@ -62,8 +63,8 @@ const Stations = () => {
   };
 
   const { data: stations, isLoading } = useQuery({
-    queryKey: ["stations", coordinates?.lat, coordinates?.lng],
-    queryFn: () => coordinates ? fetchStations(coordinates.lat, coordinates.lng) : Promise.resolve([]),
+    queryKey: ["stations", coordinates?.lat, coordinates?.lng, searchRadius],
+    queryFn: () => coordinates ? fetchStations(coordinates.lat, coordinates.lng, searchRadius) : Promise.resolve([]),
     enabled: searchInitiated && !!coordinates,
     meta: {
       onError: (error: Error) => {
@@ -77,9 +78,10 @@ const Stations = () => {
     }
   });
 
-  const handleLocationSelect = (location: string, coords: { lat: number; lng: number }) => {
-    console.log("Location selected:", location, coords);
+  const handleLocationSelect = (location: string, coords: { lat: number; lng: number }, radius?: number) => {
+    console.log("Location selected:", location, coords, "radius:", radius);
     setCoordinates(coords);
+    setSearchRadius(radius || 50);
     setSearchInitiated(true);
   };
 

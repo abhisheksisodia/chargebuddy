@@ -6,9 +6,10 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import debounce from "lodash/debounce";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface LocationSearchProps {
-  onLocationSelect: (location: string, coordinates: { lat: number; lng: number }) => void;
+  onLocationSelect: (location: string, coordinates: { lat: number; lng: number }, radius?: number) => void;
 }
 
 interface LocationSuggestion {
@@ -19,10 +20,18 @@ interface LocationSuggestion {
   };
 }
 
+const radiusOptions = [
+  { value: "10", label: "10 km" },
+  { value: "25", label: "25 km" },
+  { value: "50", label: "50 km" },
+  { value: "100", label: "100 km" },
+];
+
 export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
   const [location, setLocation] = useState("");
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [radius, setRadius] = useState("50"); // Default to 50km
   const { toast } = useToast();
 
   const fetchSuggestions = debounce(async (input: string) => {
@@ -81,7 +90,7 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
               const locationName = geocodeData.results[0].formatted;
               console.log('Location found:', locationName);
               setLocation(locationName);
-              onLocationSelect(locationName, { lat, lng });
+              onLocationSelect(locationName, { lat, lng }, parseInt(radius));
             } else {
               console.log('No location found for coordinates:', { lat, lng });
               toast({
@@ -120,7 +129,7 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
   const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
     setLocation(suggestion.formatted);
     setOpen(false);
-    onLocationSelect(suggestion.formatted, suggestion.geometry);
+    onLocationSelect(suggestion.formatted, suggestion.geometry, parseInt(radius));
   };
 
   return (
@@ -166,6 +175,21 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
       </div>
       
       <div className="flex gap-2">
+        <Select
+          value={radius}
+          onValueChange={setRadius}
+        >
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="Radius" />
+          </SelectTrigger>
+          <SelectContent>
+            {radiusOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button onClick={() => {
           if (location) {
             const suggestion = suggestions.find(s => s.formatted === location);
