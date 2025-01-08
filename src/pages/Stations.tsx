@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, DollarSign, Plug, Search } from "lucide-react";
+import { MapPin, DollarSign, Plug, Search, Locate } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import debounce from "lodash/debounce";
 
 interface Station {
   ID: number;
@@ -27,33 +30,96 @@ interface Station {
   }>;
 }
 
+interface LocationSuggestion {
+  formatted: string;
+  geometry: {
+    lat: number;
+    lng: number;
+  };
+}
+
 const Stations = () => {
   const [location, setLocation] = useState("");
   const [searchInitiated, setSearchInitiated] = useState(false);
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
 
-  const fetchStations = async (searchLocation: string) => {
+  // Function to get user's current location
+  const getCurrentLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude: lat, longitude: lng } = position.coords;
+          setCoordinates({ lat, lng });
+          // Reverse geocode to get address
+          reverseGeocode(lat, lng);
+          setSearchInitiated(true);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          toast({
+            title: "Location Error",
+            description: "Unable to get your current location. Please enter an address manually.",
+            variant: "destructive",
+          });
+        }
+      );
+    } else {
+      toast({
+        title: "Not Supported",
+        description: "Geolocation is not supported by your browser.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Reverse geocoding function
+  const reverseGeocode = async (lat: number, lng: number) => {
     try {
-      // First, get coordinates using our Edge Function
-      const { data: geocodeData, error: geocodeError } = await supabase.functions.invoke('geocode', {
-        body: { location: searchLocation }
+      const { data: geocodeData } = await supabase.functions.invoke('geocode', {
+        body: { lat, lng, mode: 'reverse' }
+      });
+      
+      if (geocodeData?.results?.[0]?.formatted) {
+        setLocation(geocodeData.results[0].formatted);
+      }
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+    }
+  };
+
+  // Debounced function to fetch address suggestions
+  const fetchSuggestions = debounce(async (input: string) => {
+    if (!input) {
+      setSuggestions([]);
+      return;
+    }
+
+    try {
+      const { data: geocodeData } = await supabase.functions.invoke('geocode', {
+        body: { location: input }
       });
 
-      console.log('Geocode response from Edge Function:', geocodeData);
-
-      if (geocodeError) {
-        console.error('Geocode error:', geocodeError);
-        throw new Error("Failed to geocode location");
+      if (geocodeData?.results) {
+        setSuggestions(geocodeData.results);
       }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    }
+  }, 300);
 
-      if (!geocodeData.results || geocodeData.results.length === 0) {
-        throw new Error("Location not found");
-      }
+  useEffect(() => {
+    if (location) {
+      fetchSuggestions(location);
+    }
+  }, [location]);
 
-      const { lat, lng } = geocodeData.results[0].geometry;
-      console.log("Coordinates:", { lat, lng });
-
-      // Now fetch charging stations using the coordinates
+  const fetchStations = async (lat: number, lng: number) => {
+    try {
+      console.log("Fetching stations for coordinates:", { lat, lng });
+      
       const stationsResponse = await fetch(
         `https://api.openchargemap.io/v3/poi/?output=json&countrycode=US&maxresults=10&compact=true&verbose=false&latitude=${lat}&longitude=${lng}&distance=10&distanceunit=miles`,
         {
@@ -68,7 +134,14 @@ const Stations = () => {
       }
 
       const data = await stationsResponse.json();
-      console.log("Stations data:", data);
+      console.log("Raw stations data:", data);
+      
+      // Ensure the response is an array and has the expected structure
+      if (!Array.isArray(data)) {
+        console.error("Invalid response format:", data);
+        return [];
+      }
+
       return data;
     } catch (error) {
       console.error("Error in fetchStations:", error);
@@ -77,9 +150,9 @@ const Stations = () => {
   };
 
   const { data: stations, isLoading } = useQuery({
-    queryKey: ["stations", location],
-    queryFn: () => fetchStations(location),
-    enabled: searchInitiated && !!location,
+    queryKey: ["stations", coordinates?.lat, coordinates?.lng],
+    queryFn: () => coordinates ? fetchStations(coordinates.lat, coordinates.lng) : Promise.resolve([]),
+    enabled: searchInitiated && !!coordinates,
     meta: {
       onError: (error: Error) => {
         console.error("Error fetching stations:", error);
@@ -92,7 +165,7 @@ const Stations = () => {
     }
   });
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!location) {
       toast({
         title: "Error",
@@ -104,21 +177,64 @@ const Stations = () => {
     setSearchInitiated(true);
   };
 
+  const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
+    setLocation(suggestion.formatted);
+    setCoordinates(suggestion.geometry);
+    setOpen(false);
+    setSearchInitiated(true);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Find Charging Stations</h1>
       
-      <div className="flex gap-4 mb-8">
-        <Input
-          placeholder="Enter location (e.g., city, address)"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="max-w-md"
-        />
-        <Button onClick={handleSearch}>
-          <Search className="h-4 w-4 mr-2" />
-          Search
-        </Button>
+      <div className="flex flex-col gap-4 mb-8 sm:flex-row">
+        <div className="flex-1">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="w-full justify-start"
+              >
+                {location || "Enter location..."}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput
+                  placeholder="Search location..."
+                  value={location}
+                  onValueChange={setLocation}
+                />
+                <CommandEmpty>No location found.</CommandEmpty>
+                <CommandGroup>
+                  {suggestions.map((suggestion, index) => (
+                    <CommandItem
+                      key={index}
+                      onSelect={() => handleSuggestionSelect(suggestion)}
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      {suggestion.formatted}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button onClick={handleSearch}>
+            <Search className="h-4 w-4 mr-2" />
+            Search
+          </Button>
+          <Button variant="outline" onClick={getCurrentLocation}>
+            <Locate className="h-4 w-4 mr-2" />
+            Use My Location
+          </Button>
+        </div>
       </div>
 
       {isLoading && <p>Loading stations...</p>}
@@ -166,7 +282,7 @@ const Stations = () => {
         ))}
       </div>
 
-      {searchInitiated && stations?.length === 0 && (
+      {searchInitiated && stations?.length === 0 && !isLoading && (
         <p className="text-center text-muted-foreground mt-8">
           No charging stations found in this area.
         </p>
