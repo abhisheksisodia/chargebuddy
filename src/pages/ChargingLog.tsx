@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,14 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ChargingCostChart } from "@/components/charging/ChargingCostChart";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Pencil, Trash2 } from "lucide-react";
 
 type ChargingSession = {
   id: string;
@@ -26,10 +34,13 @@ type ChargingSession = {
 
 const ChargingLog = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
   const [energyAdded, setEnergyAdded] = useState("");
   const [cost, setCost] = useState("");
+  const [editingSession, setEditingSession] = useState<ChargingSession | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Fetch charging sessions
   const { data: sessions, refetch } = useQuery({
@@ -51,6 +62,67 @@ const ChargingLog = () => {
       }
 
       return data as ChargingSession[];
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const { error } = await supabase
+        .from("charging_sessions")
+        .delete()
+        .eq("id", sessionId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["charging-sessions"] });
+      toast({
+        title: "Success",
+        description: "Charging session deleted successfully",
+      });
+    },
+    onError: (error) => {
+      console.error("Error deleting charging session:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete charging session",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: async (session: ChargingSession) => {
+      const { error } = await supabase
+        .from("charging_sessions")
+        .update({
+          date: session.date,
+          location: session.location,
+          energy_added: session.energy_added,
+          cost: session.cost,
+        })
+        .eq("id", session.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["charging-sessions"] });
+      setIsEditDialogOpen(false);
+      setEditingSession(null);
+      toast({
+        title: "Success",
+        description: "Charging session updated successfully",
+      });
+    },
+    onError: (error) => {
+      console.error("Error updating charging session:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update charging session",
+        variant: "destructive",
+      });
     },
   });
 
@@ -99,6 +171,24 @@ const ChargingLog = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDelete = (sessionId: string) => {
+    if (window.confirm("Are you sure you want to delete this charging session?")) {
+      deleteMutation.mutate(sessionId);
+    }
+  };
+
+  const handleEdit = (session: ChargingSession) => {
+    setEditingSession(session);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSession) return;
+
+    updateMutation.mutate(editingSession);
   };
 
   return (
@@ -175,22 +265,128 @@ const ChargingLog = () => {
               <TableHead>Location</TableHead>
               <TableHead>Energy Added (kWh)</TableHead>
               <TableHead>Cost ($)</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sessions?.map((session) => (
               <TableRow key={session.id}>
-                <TableCell>
-                  {format(new Date(session.date), "PPp")}
-                </TableCell>
+                <TableCell>{format(new Date(session.date), "PPp")}</TableCell>
                 <TableCell>{session.location}</TableCell>
                 <TableCell>{session.energy_added}</TableCell>
                 <TableCell>${session.cost}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(session)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(session.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Charging Session</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-date">Date</Label>
+              <Input
+                id="edit-date"
+                type="datetime-local"
+                value={editingSession?.date || ""}
+                onChange={(e) =>
+                  setEditingSession(
+                    editingSession
+                      ? { ...editingSession, date: e.target.value }
+                      : null
+                  )
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-location">Location</Label>
+              <Input
+                id="edit-location"
+                value={editingSession?.location || ""}
+                onChange={(e) =>
+                  setEditingSession(
+                    editingSession
+                      ? { ...editingSession, location: e.target.value }
+                      : null
+                  )
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-energy">Energy Added (kWh)</Label>
+              <Input
+                id="edit-energy"
+                type="number"
+                step="0.01"
+                value={editingSession?.energy_added || ""}
+                onChange={(e) =>
+                  setEditingSession(
+                    editingSession
+                      ? {
+                          ...editingSession,
+                          energy_added: Number(e.target.value),
+                        }
+                      : null
+                  )
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-cost">Cost ($)</Label>
+              <Input
+                id="edit-cost"
+                type="number"
+                step="0.01"
+                value={editingSession?.cost || ""}
+                onChange={(e) =>
+                  setEditingSession(
+                    editingSession
+                      ? { ...editingSession, cost: Number(e.target.value) }
+                      : null
+                  )
+                }
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
