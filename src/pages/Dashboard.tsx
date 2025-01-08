@@ -1,10 +1,11 @@
 import { Card } from "@/components/ui/card";
-import { Battery, Car, Wallet, ChevronRight } from "lucide-react";
+import { Battery, Car, Wallet, ChevronRight, Loader2 } from "lucide-react";
 import OnboardingCarousel from "@/components/dashboard/OnboardingCarousel";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 
 const Dashboard = () => {
   // Query to check if user has a vehicle
@@ -59,6 +60,54 @@ const Dashboard = () => {
     },
   });
 
+  // Get total energy charged
+  const { data: totalEnergy, isLoading: isLoadingEnergy } = useQuery({
+    queryKey: ['totalEnergy'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('charging_sessions')
+        .select('energy_added')
+        .gt('energy_added', 0);
+      
+      if (error) throw error;
+      return data?.reduce((sum, session) => sum + Number(session.energy_added), 0) || 0;
+    },
+  });
+
+  // Get trip count
+  const { data: tripCount, isLoading: isLoadingTrips } = useQuery({
+    queryKey: ['tripCount'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('trips')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Get recent activity
+  const { data: recentActivity, isLoading: isLoadingActivity } = useQuery({
+    queryKey: ['recentActivity'],
+    queryFn: async () => {
+      const { data: chargingSessions, error: chargingError } = await supabase
+        .from('charging_sessions')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(3);
+
+      if (chargingError) throw chargingError;
+      
+      return chargingSessions?.map(session => ({
+        type: 'charging',
+        date: session.date,
+        energy: session.energy_added,
+        cost: session.cost,
+      })) || [];
+    },
+  });
+
   // Show carousel only if any step is incomplete
   const showCarousel = !hasVehicle || !hasTrips || !hasChargingSessions;
 
@@ -93,7 +142,11 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Track Charging</p>
-                  <p className="text-2xl font-bold">245 kWh</p>
+                  {isLoadingEnergy ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <p className="text-2xl font-bold">{totalEnergy?.toFixed(1)} kWh</p>
+                  )}
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
@@ -110,7 +163,11 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Trip Stats</p>
-                  <p className="text-2xl font-bold">12 Trips</p>
+                  {isLoadingTrips ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <p className="text-2xl font-bold">{tripCount} Trips</p>
+                  )}
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
@@ -145,18 +202,30 @@ const Dashboard = () => {
           </Button>
         </div>
         <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center space-x-4 py-3 border-b last:border-0">
-              <div className="p-2 bg-primary-100 rounded-full">
-                <Battery className="w-4 h-4 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">Charging Session</p>
-                <p className="text-sm text-gray-500">Added 35 kWh • $12.50</p>
-              </div>
-              <div className="text-sm text-gray-500">2h ago</div>
+          {isLoadingActivity ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-          ))}
+          ) : recentActivity && recentActivity.length > 0 ? (
+            recentActivity.map((activity, i) => (
+              <div key={i} className="flex items-center space-x-4 py-3 border-b last:border-0">
+                <div className="p-2 bg-primary-100 rounded-full">
+                  <Battery className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">Charging Session</p>
+                  <p className="text-sm text-gray-500">
+                    Added {activity.energy} kWh • ${activity.cost.toFixed(2)}
+                  </p>
+                </div>
+                <div className="text-sm text-gray-500">
+                  {format(new Date(activity.date), 'MMM d')}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500 py-4">No recent activity</p>
+          )}
         </div>
       </Card>
     </div>
