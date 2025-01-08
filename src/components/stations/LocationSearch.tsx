@@ -137,7 +137,7 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
               {location || "Enter location..."}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-full p-0">
+          <PopoverContent className="w-full p-0" align="start">
             <Command>
               <CommandInput
                 placeholder="Search location..."
@@ -149,9 +149,10 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
               />
               <CommandEmpty>No location found.</CommandEmpty>
               <CommandGroup>
-                {suggestions.map((suggestion, index) => (
+                {suggestions?.map((suggestion, index) => (
                   <CommandItem
                     key={index}
+                    value={suggestion.formatted}
                     onSelect={() => handleSuggestionSelect(suggestion)}
                   >
                     <MapPin className="mr-2 h-4 w-4" />
