@@ -62,22 +62,30 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
       // Add more detailed logging
       debugLog('Raw geocode response:', geocodeData);
 
+      // Initialize an empty array for valid results
+      let validResults: LocationSuggestion[] = [];
+
       // Ensure geocodeData and results exist and are valid
       if (geocodeData?.results && Array.isArray(geocodeData.results)) {
-        const validResults = geocodeData.results.filter(result => 
+        validResults = geocodeData.results.filter((result): result is LocationSuggestion => 
           result?.formatted && 
+          typeof result.formatted === 'string' &&
           result?.geometry?.lat != null && 
-          result?.geometry?.lng != null
+          result?.geometry?.lng != null &&
+          typeof result.geometry.lat === 'number' &&
+          typeof result.geometry.lng === 'number'
         );
         
         debugLog('Filtered valid results:', validResults);
-        setSuggestions(validResults);
       } else {
         debugLog('No valid results found or malformed response:', geocodeData);
-        setSuggestions([]);
       }
+
+      // Always set a valid array, even if empty
+      setSuggestions(validResults);
     } catch (error) {
       debugLog('Error in fetchSuggestions:', error);
+      // Ensure we set an empty array rather than undefined
       setSuggestions([]);
       toast({
         title: "Error",
@@ -182,7 +190,7 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
               />
               <CommandEmpty>No location found.</CommandEmpty>
               <CommandGroup>
-                {suggestions?.map((suggestion, index) => (
+                {suggestions.map((suggestion, index) => (
                   <CommandItem
                     key={index}
                     value={suggestion.formatted}
