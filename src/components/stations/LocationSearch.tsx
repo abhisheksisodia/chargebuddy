@@ -46,22 +46,22 @@ const torontoSuggestion: LocationSuggestion = {
 export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
   const [location, setLocation] = useState("");
   const [open, setOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([torontoSuggestion]); // Initialize with Toronto
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([torontoSuggestion]);
   const [radius, setRadius] = useState("50"); // Default to 50km
   const { toast } = useToast();
 
   const fetchSuggestions = debounce(async (input: string) => {
     if (!input) {
-      setSuggestions([torontoSuggestion]); // Reset to Toronto when input is empty
+      setSuggestions([torontoSuggestion]);
       return;
     }
 
     try {
       debugLog('Fetching suggestions for:', input);
-      setSuggestions([torontoSuggestion]); // Always use Toronto regardless of input
+      setSuggestions([torontoSuggestion]);
     } catch (error) {
       debugLog('Error in fetchSuggestions:', error);
-      setSuggestions([torontoSuggestion]); // Use Toronto even in case of error
+      setSuggestions([torontoSuggestion]);
       toast({
         title: "Error",
         description: "Failed to fetch location suggestions. Please try again.",
@@ -130,7 +130,7 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
               />
               <CommandEmpty>No location found.</CommandEmpty>
               <CommandGroup>
-                {suggestions.map((suggestion, index) => (
+                {suggestions?.map((suggestion, index) => (
                   <CommandItem
                     key={index}
                     value={suggestion.formatted}
