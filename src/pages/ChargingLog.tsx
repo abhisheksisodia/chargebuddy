@@ -85,7 +85,7 @@ const ChargingLog = () => {
     },
   });
 
-  // Fetch charging locations
+  // Fetch charging locations with proper typing
   const { data: locations = [] } = useQuery({
     queryKey: ["charging-locations"],
     queryFn: async () => {
@@ -98,7 +98,12 @@ const ChargingLog = () => {
         .order("name", { ascending: true });
 
       if (error) throw error;
-      return data;
+
+      // Explicitly type and transform the data
+      return (data || []).map(location => ({
+        ...location,
+        rate_periods: (location.rate_periods || []) as RatePeriod[]
+      })) as ChargingLocation[];
     },
   });
 
@@ -144,8 +149,6 @@ const ChargingLog = () => {
       });
     },
   });
-
-  // Calculate cost based on selected location and time
 
   // Calculate cost based on selected location and time
   const calculateCost = (locationId: string, energyUsed: number, chargeDate: Date) => {
