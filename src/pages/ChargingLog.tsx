@@ -23,6 +23,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ChargingSession = {
   id: string;
@@ -36,95 +43,91 @@ const ChargingLog = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [date, setDate] = useState("");
-  const [location, setLocation] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
   const [energyAdded, setEnergyAdded] = useState("");
   const [cost, setCost] = useState("");
   const [editingSession, setEditingSession] = useState<ChargingSession | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  // Fetch charging sessions
-  const { data: sessions, refetch } = useQuery({
-    queryKey: ["charging-sessions"],
+  // Fetch charging locations
+  const { data: locations = [] } = useQuery({
+    queryKey: ["charging-locations"],
     queryFn: async () => {
       const { data: user } = await supabase.auth.getUser();
-      if (!user.user) {
-        throw new Error("Not authenticated");
-      }
+      if (!user.user) throw new Error("Not authenticated");
 
       const { data, error } = await supabase
-        .from("charging_sessions")
+        .from("charging_locations")
         .select("*")
-        .order("date", { ascending: false });
+        .order("name", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching charging sessions:", error);
-        throw error;
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Calculate cost based on selected location and time
+  const calculateCost = (locationId: string, energyUsed: number, chargeDate: Date) => {
+    const location = locations.find(loc => loc.id === locationId);
+    if (!location || !location.rate_periods) return null;
+
+    const month = chargeDate.getMonth() + 1;
+    const hours = chargeDate.getHours();
+    const minutes = chargeDate.getMinutes();
+
+    // Find applicable rate period
+    const period = location.rate_periods.find((p: any) => 
+      month >= p.startMonth && month <= p.endMonth
+    );
+
+    if (!period) return null;
+
+    // Determine which rate applies based on time
+    const time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    
+    let rate = period.offPeakRate; // Default to off-peak
+
+    // Check if current time falls within peak hours
+    const isPeakHour = period.peakHours.some((range: any) => 
+      time >= range.start && time <= range.end
+    );
+
+    if (isPeakHour) {
+      rate = period.peakRate;
+    } else if (period.midPeakHours) {
+      // Check if current time falls within mid-peak hours
+      const isMidPeakHour = period.midPeakHours.some((range: any) => 
+        time >= range.start && time <= range.end
+      );
+      if (isMidPeakHour && period.midPeakRate) {
+        rate = period.midPeakRate;
       }
+    }
 
-      return data as ChargingSession[];
-    },
-  });
+    return rate * energyUsed;
+  };
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (sessionId: string) => {
-      const { error } = await supabase
-        .from("charging_sessions")
-        .delete()
-        .eq("id", sessionId);
+  // Handle location selection
+  const handleLocationChange = (locationId: string) => {
+    setSelectedLocation(locationId);
+    if (energyAdded && date) {
+      const calculatedCost = calculateCost(locationId, Number(energyAdded), new Date(date));
+      if (calculatedCost) {
+        setCost(calculatedCost.toFixed(2));
+      }
+    }
+  };
 
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["charging-sessions"] });
-      toast({
-        title: "Success",
-        description: "Charging session deleted successfully",
-      });
-    },
-    onError: (error) => {
-      console.error("Error deleting charging session:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete charging session",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: async (session: ChargingSession) => {
-      const { error } = await supabase
-        .from("charging_sessions")
-        .update({
-          date: session.date,
-          location: session.location,
-          energy_added: session.energy_added,
-          cost: session.cost,
-        })
-        .eq("id", session.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["charging-sessions"] });
-      setIsEditDialogOpen(false);
-      setEditingSession(null);
-      toast({
-        title: "Success",
-        description: "Charging session updated successfully",
-      });
-    },
-    onError: (error) => {
-      console.error("Error updating charging session:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update charging session",
-        variant: "destructive",
-      });
-    },
-  });
+  // Handle energy input
+  const handleEnergyChange = (energy: string) => {
+    setEnergyAdded(energy);
+    if (selectedLocation && date) {
+      const calculatedCost = calculateCost(selectedLocation, Number(energy), new Date(date));
+      if (calculatedCost) {
+        setCost(calculatedCost.toFixed(2));
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,7 +145,7 @@ const ChargingLog = () => {
 
       const { error } = await supabase.from("charging_sessions").insert({
         date,
-        location,
+        location: selectedLocation,
         energy_added: Number(energyAdded),
         cost: Number(cost),
         user_id: user.user.id,
@@ -157,12 +160,12 @@ const ChargingLog = () => {
 
       // Reset form
       setDate("");
-      setLocation("");
+      setSelectedLocation("");
       setEnergyAdded("");
       setCost("");
 
       // Refresh data
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ["charging-sessions"] });
     } catch (error) {
       console.error("Error adding charging session:", error);
       toast({
@@ -194,8 +197,8 @@ const ChargingLog = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Charging Log</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold tracking-tight dark:text-white">Charging Log</h1>
+        <p className="text-muted-foreground dark:text-gray-400">
           Track your charging sessions and monitor costs
         </p>
       </div>
@@ -204,48 +207,70 @@ const ChargingLog = () => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
+            <Label htmlFor="date" className="dark:text-gray-200">Date</Label>
             <Input
               id="date"
               type="datetime-local"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              className="dark:bg-gray-700 dark:text-white"
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              required
-            />
+            <Label htmlFor="location" className="dark:text-gray-200">Location</Label>
+            <Select onValueChange={handleLocationChange} value={selectedLocation}>
+              <SelectTrigger className="dark:bg-gray-700 dark:text-white">
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="custom">Custom Location</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedLocation === "custom" && (
+              <Input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Enter location"
+                className="mt-2 dark:bg-gray-700 dark:text-white"
+                required
+              />
+            )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="energy">Energy Added (kWh)</Label>
+            <Label htmlFor="energy" className="dark:text-gray-200">Energy Added (kWh)</Label>
             <Input
               id="energy"
               type="number"
               step="0.01"
               value={energyAdded}
-              onChange={(e) => setEnergyAdded(e.target.value)}
+              onChange={(e) => handleEnergyChange(e.target.value)}
+              className="dark:bg-gray-700 dark:text-white"
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cost">Cost ($)</Label>
+            <Label htmlFor="cost" className="dark:text-gray-200">Cost ($)</Label>
             <Input
               id="cost"
               type="number"
               step="0.01"
               value={cost}
               onChange={(e) => setCost(e.target.value)}
+              className="dark:bg-gray-700 dark:text-white"
               required
+              readOnly={selectedLocation !== "custom"}
             />
           </div>
         </div>
-        <Button type="submit">Add Charging Session</Button>
+        <Button type="submit" className="dark:bg-blue-600 dark:hover:bg-blue-700">
+          Add Charging Session
+        </Button>
       </form>
 
       {/* Chart */}

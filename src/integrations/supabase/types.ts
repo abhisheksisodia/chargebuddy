@@ -15,10 +15,13 @@ export type Database = {
           created_at: string
           id: string
           is_default: boolean | null
+          location_type: string | null
           name: string
           notes: string | null
           off_peak_rate: number | null
+          peak_hours: Json | null
           peak_rate: number | null
+          rate_periods: Json | null
           summer_rate: number | null
           super_off_peak_rate: number | null
           updated_at: string
@@ -30,10 +33,13 @@ export type Database = {
           created_at?: string
           id?: string
           is_default?: boolean | null
+          location_type?: string | null
           name: string
           notes?: string | null
           off_peak_rate?: number | null
+          peak_hours?: Json | null
           peak_rate?: number | null
+          rate_periods?: Json | null
           summer_rate?: number | null
           super_off_peak_rate?: number | null
           updated_at?: string
@@ -45,10 +51,13 @@ export type Database = {
           created_at?: string
           id?: string
           is_default?: boolean | null
+          location_type?: string | null
           name?: string
           notes?: string | null
           off_peak_rate?: number | null
+          peak_hours?: Json | null
           peak_rate?: number | null
+          rate_periods?: Json | null
           summer_rate?: number | null
           super_off_peak_rate?: number | null
           updated_at?: string

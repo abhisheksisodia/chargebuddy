@@ -14,25 +14,53 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MapPin, Plus, Trash, Sun, Snowflake, Clock } from "lucide-react";
+import { Loader2, MapPin, Plus, Trash, Sun, Moon, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Database } from "@/integrations/supabase/types";
 
-type ChargingLocation = Database["public"]["Tables"]["charging_locations"]["Row"];
-type InsertChargingLocation = Database["public"]["Tables"]["charging_locations"]["Insert"];
+type RatePeriod = {
+  startMonth: number;
+  endMonth: number;
+  peakRate: number;
+  offPeakRate: number;
+  midPeakRate?: number;
+  peakHours: { start: string; end: string }[];
+  offPeakHours: { start: string; end: string }[];
+  midPeakHours?: { start: string; end: string }[];
+};
 
 const locationFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   address: z.string().min(5, "Address must be at least 5 characters"),
-  peak_rate: z.coerce.number().min(0, "Rate must be positive").nullable(),
-  off_peak_rate: z.coerce.number().min(0, "Rate must be positive").nullable(),
-  super_off_peak_rate: z.coerce.number().min(0, "Rate must be positive").nullable(),
-  summer_rate: z.coerce.number().min(0, "Rate must be positive").nullable(),
-  winter_rate: z.coerce.number().min(0, "Rate must be positive").nullable(),
+  locationType: z.enum(["home", "work", "favorite"]),
   notes: z.string().optional(),
-  is_default: z.boolean().default(false),
+  ratePeriods: z.array(z.object({
+    startMonth: z.number().min(1).max(12),
+    endMonth: z.number().min(1).max(12),
+    peakRate: z.number().min(0),
+    offPeakRate: z.number().min(0),
+    midPeakRate: z.number().min(0).optional(),
+    peakHours: z.array(z.object({
+      start: z.string(),
+      end: z.string()
+    })),
+    offPeakHours: z.array(z.object({
+      start: z.string(),
+      end: z.string()
+    })),
+    midPeakHours: z.array(z.object({
+      start: z.string(),
+      end: z.string()
+    })).optional()
+  })).default([])
 });
 
 type LocationFormValues = z.infer<typeof locationFormSchema>;
@@ -41,6 +69,18 @@ const ChargingLocations = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showLocationForm, setShowLocationForm] = useState(false);
+  const [ratePeriods, setRatePeriods] = useState<RatePeriod[]>([]);
+
+  const form = useForm<LocationFormValues>({
+    resolver: zodResolver(locationFormSchema),
+    defaultValues: {
+      name: "",
+      address: "",
+      locationType: "favorite",
+      notes: "",
+      ratePeriods: []
+    },
+  });
 
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ["charging-locations"],
@@ -55,42 +95,19 @@ const ChargingLocations = () => {
     },
   });
 
-  const form = useForm<LocationFormValues>({
-    resolver: zodResolver(locationFormSchema),
-    defaultValues: {
-      name: "",
-      address: "",
-      peak_rate: null,
-      off_peak_rate: null,
-      super_off_peak_rate: null,
-      summer_rate: null,
-      winter_rate: null,
-      notes: "",
-      is_default: false,
-    },
-  });
-
   const addLocation = useMutation({
     mutationFn: async (values: LocationFormValues) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const locationData: InsertChargingLocation = {
+      const { error } = await supabase.from("charging_locations").insert({
         name: values.name,
         address: values.address,
-        peak_rate: values.peak_rate,
-        off_peak_rate: values.off_peak_rate,
-        super_off_peak_rate: values.super_off_peak_rate,
-        summer_rate: values.summer_rate,
-        winter_rate: values.winter_rate,
+        location_type: values.locationType,
         notes: values.notes,
-        is_default: values.is_default,
+        rate_periods: values.ratePeriods,
         user_id: user.id,
-      };
-
-      const { error } = await supabase
-        .from("charging_locations")
-        .insert(locationData);
+      });
 
       if (error) throw error;
     },
@@ -99,46 +116,33 @@ const ChargingLocations = () => {
       setShowLocationForm(false);
       form.reset();
       toast({
-        title: "Location added",
-        description: "Your charging location has been saved successfully.",
+        title: "Success",
+        description: "Charging location added successfully",
       });
     },
   });
 
-  const deleteLocation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("charging_locations")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["charging-locations"] });
-      toast({
-        title: "Location deleted",
-        description: "Your charging location has been deleted successfully.",
-      });
-    },
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
+  const addRatePeriod = () => {
+    const newPeriod: RatePeriod = {
+      startMonth: 1,
+      endMonth: 12,
+      peakRate: 0,
+      offPeakRate: 0,
+      peakHours: [{ start: "09:00", end: "17:00" }],
+      offPeakHours: [{ start: "00:00", end: "09:00" }, { start: "17:00", end: "23:59" }]
+    };
+    setRatePeriods([...ratePeriods, newPeriod]);
+  };
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 dark:bg-gray-800">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold">Charging Locations</h2>
+        <h2 className="text-lg font-semibold dark:text-white">Charging Locations</h2>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setShowLocationForm(!showLocationForm)}
+          className="dark:bg-gray-700 dark:text-white"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Location
@@ -147,18 +151,15 @@ const ChargingLocations = () => {
 
       {showLocationForm && (
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit((data) => addLocation.mutate(data))}
-            className="space-y-4 mb-6"
-          >
+          <form onSubmit={form.handleSubmit((data) => addLocation.mutate(data))} className="space-y-4">
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Location Name</FormLabel>
+                  <FormLabel className="dark:text-gray-200">Location Name</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} className="dark:bg-gray-700 dark:text-white" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -166,99 +167,156 @@ const ChargingLocations = () => {
             />
             <FormField
               control={form.control}
-              name="address"
+              name="locationType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                  <FormLabel className="dark:text-gray-200">Location Type</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="dark:bg-gray-700 dark:text-white">
+                        <SelectValue placeholder="Select location type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="home">Home</SelectItem>
+                      <SelectItem value="work">Work</SelectItem>
+                      <SelectItem value="favorite">Favorite</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="peak_rate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Peak Rate ($/kWh)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="off_peak_rate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Off-Peak Rate ($/kWh)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
+            {/* Rate Periods Section */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-md font-medium dark:text-gray-200">Rate Periods</h3>
+                <Button type="button" variant="outline" onClick={addRatePeriod} className="dark:bg-gray-700">
+                  Add Rate Period
+                </Button>
+              </div>
+              
+              {ratePeriods.map((period, index) => (
+                <div key={index} className="p-4 border rounded-lg dark:border-gray-600">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`ratePeriods.${index}.startMonth`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="dark:text-gray-200">Start Month</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(parseInt(value))}
+                            defaultValue={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="dark:bg-gray-700">
+                                <SelectValue placeholder="Select month" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {Array.from({ length: 12 }, (_, i) => (
+                                <SelectItem key={i + 1} value={(i + 1).toString()}>
+                                  {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name={`ratePeriods.${index}.endMonth`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="dark:text-gray-200">End Month</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(parseInt(value))}
+                            defaultValue={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="dark:bg-gray-700">
+                                <SelectValue placeholder="Select month" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {Array.from({ length: 12 }, (_, i) => (
+                                <SelectItem key={i + 1} value={(i + 1).toString()}>
+                                  {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 mt-4">
+                    <FormField
+                      control={form.control}
+                      name={`ratePeriods.${index}.peakRate`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="dark:text-gray-200">Peak Rate ($/kWh)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              className="dark:bg-gray-700"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name={`ratePeriods.${index}.offPeakRate`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="dark:text-gray-200">Off-Peak Rate ($/kWh)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              className="dark:bg-gray-700"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name={`ratePeriods.${index}.midPeakRate`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="dark:text-gray-200">Mid-Peak Rate ($/kWh)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...field}
+                              className="dark:bg-gray-700"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-            <FormField
-              control={form.control}
-              name="super_off_peak_rate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Super Off-Peak Rate ($/kWh)</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.01" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="summer_rate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Summer Rate ($/kWh)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="winter_rate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Winter Rate ($/kWh)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
             <div className="flex gap-2">
               <Button type="submit" disabled={addLocation.isPending}>
                 {addLocation.isPending && (
@@ -270,6 +328,7 @@ const ChargingLocations = () => {
                 type="button"
                 variant="outline"
                 onClick={() => setShowLocationForm(false)}
+                className="dark:bg-gray-700"
               >
                 Cancel
               </Button>
@@ -278,77 +337,57 @@ const ChargingLocations = () => {
         </Form>
       )}
 
-      <div className="space-y-4">
+      {/* Location List */}
+      <div className="space-y-4 mt-6">
         {locations.length === 0 ? (
-          <p className="text-muted-foreground text-center py-4">
+          <p className="text-muted-foreground text-center py-4 dark:text-gray-400">
             No charging locations added yet
           </p>
         ) : (
           locations.map((location) => (
             <div
               key={location.id}
-              className="flex flex-col space-y-2 p-4 border rounded-lg hover:bg-accent transition-colors"
+              className="flex flex-col space-y-2 p-4 border rounded-lg dark:border-gray-600 dark:bg-gray-700"
             >
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <h3 className="font-medium flex items-center">
+                  <h3 className="font-medium flex items-center dark:text-white">
                     <MapPin className="h-4 w-4 mr-2 text-primary" />
                     {location.name}
                   </h3>
-                  <p className="text-sm text-muted-foreground">{location.address}</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => deleteLocation.mutate(location.id)}
-                  disabled={deleteLocation.isPending}
-                >
-                  <Trash className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    Time-based Rates
+                  <p className="text-sm text-muted-foreground dark:text-gray-300">
+                    {location.address}
                   </p>
-                  <ul className="text-sm space-y-1">
-                    {location.peak_rate && (
-                      <li>Peak: ${location.peak_rate}/kWh</li>
-                    )}
-                    {location.off_peak_rate && (
-                      <li>Off-Peak: ${location.off_peak_rate}/kWh</li>
-                    )}
-                    {location.super_off_peak_rate && (
-                      <li>Super Off-Peak: ${location.super_off_peak_rate}/kWh</li>
-                    )}
-                  </ul>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium flex items-center">
-                    <Sun className="h-4 w-4 mr-1" />
-                    Summer Rate
-                  </p>
-                  {location.summer_rate ? (
-                    <p className="text-sm">${location.summer_rate}/kWh</p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Not set</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium flex items-center">
-                    <Snowflake className="h-4 w-4 mr-1" />
-                    Winter Rate
-                  </p>
-                  {location.winter_rate ? (
-                    <p className="text-sm">${location.winter_rate}/kWh</p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Not set</p>
-                  )}
                 </div>
               </div>
-              {location.notes && (
-                <p className="text-sm text-muted-foreground mt-2">{location.notes}</p>
+              
+              {location.rate_periods && location.rate_periods.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {location.rate_periods.map((period: RatePeriod, index: number) => (
+                    <div key={index} className="text-sm dark:text-gray-300">
+                      <p className="font-medium">
+                        {new Date(0, period.startMonth - 1).toLocaleString('default', { month: 'short' })} - 
+                        {new Date(0, period.endMonth - 1).toLocaleString('default', { month: 'short' })}
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 mt-1">
+                        <div className="flex items-center">
+                          <Sun className="h-4 w-4 mr-1" />
+                          Peak: ${period.peakRate}/kWh
+                        </div>
+                        <div className="flex items-center">
+                          <Moon className="h-4 w-4 mr-1" />
+                          Off-Peak: ${period.offPeakRate}/kWh
+                        </div>
+                        {period.midPeakRate && (
+                          <div className="flex items-center">
+                            <Clock className="h-4 w-4 mr-1" />
+                            Mid-Peak: ${period.midPeakRate}/kWh
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           ))
