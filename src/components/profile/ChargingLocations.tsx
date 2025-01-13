@@ -99,10 +99,14 @@ const ChargingLocations = () => {
         .order("created_at", { ascending: false });
       
       if (error) throw error;
+      
+      // Explicitly type and transform the data
       const typedData = data.map(location => ({
         ...location,
-        rate_periods: location.rate_periods as RatePeriod[]
+        location_type: location.location_type as "home" | "work" | "favorite",
+        rate_periods: (location.rate_periods || []) as RatePeriod[]
       }));
+      
       return typedData;
     },
   });
