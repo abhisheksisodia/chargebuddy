@@ -48,6 +48,24 @@ const ChargingLog = () => {
   const [cost, setCost] = useState("");
   const [editingSession, setEditingSession] = useState<ChargingSession | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [customLocation, setCustomLocation] = useState("");
+
+  // Fetch charging sessions
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["charging-sessions"],
+    queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("charging_sessions")
+        .select("*")
+        .order("date", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Fetch charging locations
   const { data: locations = [] } = useQuery({
@@ -63,6 +81,49 @@ const ChargingLog = () => {
 
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const { error } = await supabase
+        .from("charging_sessions")
+        .delete()
+        .eq("id", sessionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["charging-sessions"] });
+      toast({
+        title: "Success",
+        description: "Charging session deleted successfully",
+      });
+    },
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: async (session: ChargingSession) => {
+      const { error } = await supabase
+        .from("charging_sessions")
+        .update({
+          date: session.date,
+          location: session.location,
+          energy_added: session.energy_added,
+          cost: session.cost,
+        })
+        .eq("id", session.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["charging-sessions"] });
+      setIsEditDialogOpen(false);
+      setEditingSession(null);
+      toast({
+        title: "Success",
+        description: "Charging session updated successfully",
+      });
     },
   });
 
