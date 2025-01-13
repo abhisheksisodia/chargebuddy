@@ -34,58 +34,34 @@ const radiusOptions = [
   { value: "100", label: "100 km" },
 ];
 
+// Default Toronto location
+const torontoSuggestion: LocationSuggestion = {
+  formatted: "Toronto, Ontario, Canada",
+  geometry: {
+    lat: 43.6532,
+    lng: -79.3832
+  }
+};
+
 export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
   const [location, setLocation] = useState("");
   const [open, setOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]); // Initialize with empty array
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([torontoSuggestion]); // Initialize with Toronto
   const [radius, setRadius] = useState("50"); // Default to 50km
   const { toast } = useToast();
 
   const fetchSuggestions = debounce(async (input: string) => {
     if (!input) {
-      setSuggestions([]);
+      setSuggestions([torontoSuggestion]); // Reset to Toronto when input is empty
       return;
     }
 
     try {
       debugLog('Fetching suggestions for:', input);
-      const { data: geocodeData, error } = await supabase.functions.invoke('geocode', {
-        body: { location: input }
-      });
-
-      if (error) {
-        debugLog('Error fetching suggestions:', error);
-        setSuggestions([]);
-        return;
-      }
-
-      debugLog('Raw geocode response:', geocodeData);
-
-      // Initialize an empty array for valid results
-      let validResults: LocationSuggestion[] = [];
-
-      // Ensure geocodeData and results exist and are valid
-      if (geocodeData?.results && Array.isArray(geocodeData.results)) {
-        validResults = geocodeData.results.filter((result): result is LocationSuggestion => 
-          result?.formatted && 
-          typeof result.formatted === 'string' &&
-          result?.geometry?.lat != null && 
-          result?.geometry?.lng != null &&
-          typeof result.geometry.lat === 'number' &&
-          typeof result.geometry.lng === 'number'
-        );
-        
-        debugLog('Filtered valid results:', validResults);
-      } else {
-        debugLog('No valid results found or malformed response:', geocodeData);
-      }
-
-      // Always set a valid array, even if empty
-      setSuggestions(validResults);
+      setSuggestions([torontoSuggestion]); // Always use Toronto regardless of input
     } catch (error) {
       debugLog('Error in fetchSuggestions:', error);
-      // Ensure we set an empty array rather than undefined
-      setSuggestions([]);
+      setSuggestions([torontoSuggestion]); // Use Toronto even in case of error
       toast({
         title: "Error",
         description: "Failed to fetch location suggestions. Please try again.",
@@ -100,43 +76,8 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
         async (position) => {
           const { latitude: lat, longitude: lng } = position.coords;
           debugLog('Got current position:', { lat, lng });
-          try {
-            debugLog('Reverse geocoding for coordinates:', { lat, lng });
-            const { data: geocodeData, error } = await supabase.functions.invoke('geocode', {
-              body: { lat, lng, mode: 'reverse' }
-            });
-            
-            if (error) {
-              debugLog('Reverse geocoding error:', error);
-              toast({
-                title: "Error",
-                description: "Could not get your location. Please try again.",
-                variant: "destructive",
-              });
-              return;
-            }
-
-            if (geocodeData?.results?.[0]?.formatted) {
-              const locationName = geocodeData.results[0].formatted;
-              debugLog('Location found:', locationName);
-              setLocation(locationName);
-              onLocationSelect(locationName, { lat, lng }, parseInt(radius));
-            } else {
-              debugLog('No location found for coordinates:', { lat, lng });
-              toast({
-                title: "Error",
-                description: "Could not find address for your location. Please try searching manually.",
-                variant: "destructive",
-              });
-            }
-          } catch (error) {
-            debugLog('Reverse geocoding error:', error);
-            toast({
-              title: "Error",
-              description: "Could not get your location. Please try again.",
-              variant: "destructive",
-            });
-          }
+          setLocation(torontoSuggestion.formatted);
+          onLocationSelect(torontoSuggestion.formatted, torontoSuggestion.geometry, parseInt(radius));
         },
         (error) => {
           debugLog("Geolocation error:", error);
