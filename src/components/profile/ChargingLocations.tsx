@@ -71,6 +71,8 @@ const locationFormSchema = z.object({
   })).default([])
 });
 
+type LocationFormValues = z.infer<typeof locationFormSchema>;
+
 const ChargingLocations = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -97,7 +99,11 @@ const ChargingLocations = () => {
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data as ChargingLocation[];
+      const typedData = data.map(location => ({
+        ...location,
+        rate_periods: location.rate_periods as RatePeriod[]
+      }));
+      return typedData;
     },
   });
 
@@ -135,7 +141,8 @@ const ChargingLocations = () => {
       peakRate: 0,
       offPeakRate: 0,
       peakHours: [{ start: "09:00", end: "17:00" }],
-      offPeakHours: [{ start: "00:00", end: "09:00" }, { start: "17:00", end: "23:59" }]
+      offPeakHours: [{ start: "19:00", end: "07:00" }],
+      midPeakHours: [{ start: "17:00", end: "19:00" }]
     };
     setRatePeriods([...ratePeriods, newPeriod]);
   };
@@ -319,6 +326,123 @@ const ChargingLocations = () => {
                       )}
                     />
                   </div>
+
+                  {/* Time of Day Section */}
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <FormLabel className="dark:text-gray-200">Peak Hours</FormLabel>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`ratePeriods.${index}.peakHours.0.start`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="dark:text-gray-200">Start Time</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  className="dark:bg-gray-700"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`ratePeriods.${index}.peakHours.0.end`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="dark:text-gray-200">End Time</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  className="dark:bg-gray-700"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <FormLabel className="dark:text-gray-200">Off-Peak Hours</FormLabel>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`ratePeriods.${index}.offPeakHours.0.start`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="dark:text-gray-200">Start Time</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  className="dark:bg-gray-700"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`ratePeriods.${index}.offPeakHours.0.end`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="dark:text-gray-200">End Time</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  className="dark:bg-gray-700"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <FormLabel className="dark:text-gray-200">Mid-Peak Hours (Optional)</FormLabel>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`ratePeriods.${index}.midPeakHours.0.start`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="dark:text-gray-200">Start Time</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  className="dark:bg-gray-700"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`ratePeriods.${index}.midPeakHours.0.end`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="dark:text-gray-200">End Time</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  className="dark:bg-gray-700"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -369,7 +493,7 @@ const ChargingLocations = () => {
               
               {location.rate_periods && location.rate_periods.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  {location.rate_periods.map((period: RatePeriod, index: number) => (
+                  {location.rate_periods.map((period, index) => (
                     <div key={index} className="text-sm dark:text-gray-300">
                       <p className="font-medium">
                         {new Date(0, period.startMonth - 1).toLocaleString('default', { month: 'short' })} - 
@@ -379,15 +503,24 @@ const ChargingLocations = () => {
                         <div className="flex items-center">
                           <Sun className="h-4 w-4 mr-1" />
                           Peak: ${period.peakRate}/kWh
+                          <span className="ml-1 text-xs">
+                            ({period.peakHours[0].start}-{period.peakHours[0].end})
+                          </span>
                         </div>
                         <div className="flex items-center">
                           <Moon className="h-4 w-4 mr-1" />
                           Off-Peak: ${period.offPeakRate}/kWh
+                          <span className="ml-1 text-xs">
+                            ({period.offPeakHours[0].start}-{period.offPeakHours[0].end})
+                          </span>
                         </div>
-                        {period.midPeakRate && (
+                        {period.midPeakRate && period.midPeakHours && (
                           <div className="flex items-center">
                             <Clock className="h-4 w-4 mr-1" />
                             Mid-Peak: ${period.midPeakRate}/kWh
+                            <span className="ml-1 text-xs">
+                              ({period.midPeakHours[0].start}-{period.midPeakHours[0].end})
+                            </span>
                           </div>
                         )}
                       </div>
