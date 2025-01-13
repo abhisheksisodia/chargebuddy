@@ -20,7 +20,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
 import {
@@ -39,6 +38,23 @@ type ChargingSession = {
   cost: number;
 };
 
+type ChargingLocation = {
+  id: string;
+  name: string;
+  address: string;
+  location_type: string;
+  rate_periods: {
+    startMonth: number;
+    endMonth: number;
+    peakRate: number;
+    offPeakRate: number;
+    midPeakRate?: number;
+    peakHours: { start: string; end: string }[];
+    offPeakHours: { start: string; end: string }[];
+    midPeakHours?: { start: string; end: string }[];
+  }[];
+};
+
 const ChargingLog = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -48,7 +64,7 @@ const ChargingLog = () => {
   const [cost, setCost] = useState("");
   const [editingSession, setEditingSession] = useState<ChargingSession | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [customLocation, setCustomLocation] = useState("");
+  const [customLocationName, setCustomLocationName] = useState("");
 
   // Fetch charging sessions
   const { data: sessions = [] } = useQuery({
@@ -136,28 +152,24 @@ const ChargingLog = () => {
     const hours = chargeDate.getHours();
     const minutes = chargeDate.getMinutes();
 
-    // Find applicable rate period
-    const period = location.rate_periods.find((p: any) => 
+    const period = location.rate_periods.find(p => 
       month >= p.startMonth && month <= p.endMonth
     );
 
     if (!period) return null;
 
-    // Determine which rate applies based on time
     const time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     
-    let rate = period.offPeakRate; // Default to off-peak
+    let rate = period.offPeakRate;
 
-    // Check if current time falls within peak hours
-    const isPeakHour = period.peakHours.some((range: any) => 
+    const isPeakHour = period.peakHours.some(range => 
       time >= range.start && time <= range.end
     );
 
     if (isPeakHour) {
       rate = period.peakRate;
     } else if (period.midPeakHours) {
-      // Check if current time falls within mid-peak hours
-      const isMidPeakHour = period.midPeakHours.some((range: any) => 
+      const isMidPeakHour = period.midPeakHours.some(range => 
         time >= range.start && time <= range.end
       );
       if (isMidPeakHour && period.midPeakRate) {
@@ -295,8 +307,8 @@ const ChargingLog = () => {
             </Select>
             {selectedLocation === "custom" && (
               <Input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                value={customLocationName}
+                onChange={(e) => setCustomLocationName(e.target.value)}
                 placeholder="Enter location"
                 className="mt-2 dark:bg-gray-700 dark:text-white"
                 required

@@ -13,7 +13,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -22,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MapPin, Plus, Trash, Sun, Moon, Clock } from "lucide-react";
+import { Loader2, MapPin, Plus, Sun, Moon, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -35,6 +34,15 @@ type RatePeriod = {
   peakHours: { start: string; end: string }[];
   offPeakHours: { start: string; end: string }[];
   midPeakHours?: { start: string; end: string }[];
+};
+
+type ChargingLocation = {
+  id: string;
+  name: string;
+  address: string;
+  location_type: "home" | "work" | "favorite";
+  rate_periods: RatePeriod[];
+  notes?: string;
 };
 
 const locationFormSchema = z.object({
@@ -63,8 +71,6 @@ const locationFormSchema = z.object({
   })).default([])
 });
 
-type LocationFormValues = z.infer<typeof locationFormSchema>;
-
 const ChargingLocations = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -82,7 +88,7 @@ const ChargingLocations = () => {
     },
   });
 
-  const { data: locations = [], isLoading } = useQuery({
+  const { data: locations = [], isLoading } = useQuery<ChargingLocation[]>({
     queryKey: ["charging-locations"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -91,7 +97,7 @@ const ChargingLocations = () => {
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data as ChargingLocation[];
     },
   });
 
