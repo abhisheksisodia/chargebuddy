@@ -38,21 +38,23 @@ type ChargingSession = {
   cost: number;
 };
 
+interface RatePeriod {
+  startMonth: number;
+  endMonth: number;
+  peakRate: number;
+  offPeakRate: number;
+  midPeakRate?: number;
+  peakHours: { start: string; end: string }[];
+  offPeakHours: { start: string; end: string }[];
+  midPeakHours?: { start: string; end: string }[];
+}
+
 type ChargingLocation = {
   id: string;
   name: string;
   address: string;
   location_type: string;
-  rate_periods: {
-    startMonth: number;
-    endMonth: number;
-    peakRate: number;
-    offPeakRate: number;
-    midPeakRate?: number;
-    peakHours: { start: string; end: string }[];
-    offPeakHours: { start: string; end: string }[];
-    midPeakHours?: { start: string; end: string }[];
-  }[];
+  rate_periods: RatePeriod[];
 };
 
 const ChargingLog = () => {
@@ -144,9 +146,11 @@ const ChargingLog = () => {
   });
 
   // Calculate cost based on selected location and time
+
+  // Calculate cost based on selected location and time
   const calculateCost = (locationId: string, energyUsed: number, chargeDate: Date) => {
     const location = locations.find(loc => loc.id === locationId);
-    if (!location || !location.rate_periods) return null;
+    if (!location?.rate_periods?.length) return null;
 
     const month = chargeDate.getMonth() + 1;
     const hours = chargeDate.getHours();
