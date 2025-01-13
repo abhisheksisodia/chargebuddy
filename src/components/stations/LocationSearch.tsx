@@ -59,16 +59,31 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
         return;
       }
 
+      // Add more detailed logging
+      debugLog('Raw geocode response:', geocodeData);
+
+      // Ensure geocodeData and results exist and are valid
       if (geocodeData?.results && Array.isArray(geocodeData.results)) {
-        debugLog('Geocode results:', geocodeData.results);
-        setSuggestions(geocodeData.results);
+        const validResults = geocodeData.results.filter(result => 
+          result?.formatted && 
+          result?.geometry?.lat != null && 
+          result?.geometry?.lng != null
+        );
+        
+        debugLog('Filtered valid results:', validResults);
+        setSuggestions(validResults);
       } else {
-        debugLog('No valid results found:', geocodeData);
+        debugLog('No valid results found or malformed response:', geocodeData);
         setSuggestions([]);
       }
     } catch (error) {
-      debugLog('Error fetching suggestions:', error);
+      debugLog('Error in fetchSuggestions:', error);
       setSuggestions([]);
+      toast({
+        title: "Error",
+        description: "Failed to fetch location suggestions. Please try again.",
+        variant: "destructive",
+      });
     }
   }, 300);
 
