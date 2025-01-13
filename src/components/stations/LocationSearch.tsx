@@ -8,6 +8,13 @@ import debounce from "lodash/debounce";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+const debugLog = (...args: any[]) => {
+  if (isDevelopment) {
+    console.log(...args);
+  }
+};
+
 interface LocationSearchProps {
   onLocationSelect: (location: string, coordinates: { lat: number; lng: number }, radius?: number) => void;
 }
@@ -41,26 +48,26 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
     }
 
     try {
-      console.log('Fetching suggestions for:', input);
+      debugLog('Fetching suggestions for:', input);
       const { data: geocodeData, error } = await supabase.functions.invoke('geocode', {
         body: { location: input }
       });
 
       if (error) {
-        console.error('Error fetching suggestions:', error);
+        debugLog('Error fetching suggestions:', error);
         setSuggestions([]);
         return;
       }
 
       if (geocodeData?.results && Array.isArray(geocodeData.results)) {
-        console.log('Geocode results:', geocodeData.results);
+        debugLog('Geocode results:', geocodeData.results);
         setSuggestions(geocodeData.results);
       } else {
-        console.log('No valid results found:', geocodeData);
+        debugLog('No valid results found:', geocodeData);
         setSuggestions([]);
       }
     } catch (error) {
-      console.error('Error fetching suggestions:', error);
+      debugLog('Error fetching suggestions:', error);
       setSuggestions([]);
     }
   }, 300);
@@ -70,14 +77,15 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude: lat, longitude: lng } = position.coords;
+          debugLog('Got current position:', { lat, lng });
           try {
-            console.log('Reverse geocoding for coordinates:', { lat, lng });
+            debugLog('Reverse geocoding for coordinates:', { lat, lng });
             const { data: geocodeData, error } = await supabase.functions.invoke('geocode', {
               body: { lat, lng, mode: 'reverse' }
             });
             
             if (error) {
-              console.error('Reverse geocoding error:', error);
+              debugLog('Reverse geocoding error:', error);
               toast({
                 title: "Error",
                 description: "Could not get your location. Please try again.",
@@ -88,11 +96,11 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
 
             if (geocodeData?.results?.[0]?.formatted) {
               const locationName = geocodeData.results[0].formatted;
-              console.log('Location found:', locationName);
+              debugLog('Location found:', locationName);
               setLocation(locationName);
               onLocationSelect(locationName, { lat, lng }, parseInt(radius));
             } else {
-              console.log('No location found for coordinates:', { lat, lng });
+              debugLog('No location found for coordinates:', { lat, lng });
               toast({
                 title: "Error",
                 description: "Could not find address for your location. Please try searching manually.",
@@ -100,7 +108,7 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
               });
             }
           } catch (error) {
-            console.error('Reverse geocoding error:', error);
+            debugLog('Reverse geocoding error:', error);
             toast({
               title: "Error",
               description: "Could not get your location. Please try again.",
@@ -109,7 +117,7 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
           }
         },
         (error) => {
-          console.error("Geolocation error:", error);
+          debugLog("Geolocation error:", error);
           toast({
             title: "Error",
             description: "Could not access your location. Please enable location services and try again.",
@@ -127,6 +135,7 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
   };
 
   const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
+    debugLog('Selected suggestion:', suggestion);
     setLocation(suggestion.formatted);
     setOpen(false);
     onLocationSelect(suggestion.formatted, suggestion.geometry, parseInt(radius));

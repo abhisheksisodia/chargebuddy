@@ -24,6 +24,13 @@ interface Station {
   }>;
 }
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+const debugLog = (...args: any[]) => {
+  if (isDevelopment) {
+    console.log(...args);
+  }
+};
+
 const Stations = () => {
   const [searchInitiated, setSearchInitiated] = useState(false);
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
@@ -32,10 +39,13 @@ const Stations = () => {
 
   const fetchStations = async (lat: number, lng: number, radius: number) => {
     try {
-      console.log("Fetching stations for coordinates:", { lat, lng, radius });
+      debugLog("Starting fetchStations with params:", { lat, lng, radius });
+      
+      const apiUrl = `https://api.openchargemap.io/v3/poi/?output=json&countrycode=US&maxresults=10&compact=true&verbose=false&latitude=${lat}&longitude=${lng}&distance=${radius}&distanceunit=KM`;
+      debugLog("Fetching from URL:", apiUrl);
       
       const stationsResponse = await fetch(
-        `https://api.openchargemap.io/v3/poi/?output=json&countrycode=US&maxresults=10&compact=true&verbose=false&latitude=${lat}&longitude=${lng}&distance=${radius}&distanceunit=KM`,
+        apiUrl,
         {
           headers: {
             "X-API-Key": "09dd6a7c-5fa2-443d-a761-6d9e1591943e",
@@ -43,21 +53,26 @@ const Stations = () => {
         }
       );
 
+      debugLog("Response status:", stationsResponse.status);
+      
       if (!stationsResponse.ok) {
-        throw new Error("Failed to fetch stations");
+        const errorText = await stationsResponse.text();
+        debugLog("Error response:", errorText);
+        throw new Error(`Failed to fetch stations: ${stationsResponse.status} ${errorText}`);
       }
 
       const data = await stationsResponse.json();
-      console.log("Raw stations data:", data);
+      debugLog("Raw stations data:", data);
       
       if (!Array.isArray(data)) {
-        console.error("Invalid response format:", data);
+        debugLog("Invalid response format - not an array:", data);
         return [];
       }
 
+      debugLog("Number of stations found:", data.length);
       return data;
     } catch (error) {
-      console.error("Error in fetchStations:", error);
+      debugLog("Error in fetchStations:", error);
       throw error;
     }
   };
@@ -68,7 +83,7 @@ const Stations = () => {
     enabled: searchInitiated && !!coordinates,
     meta: {
       onError: (error: Error) => {
-        console.error("Error fetching stations:", error);
+        debugLog("Query error:", error);
         toast({
           title: "Error",
           description: "Failed to fetch charging stations. Please try again.",
@@ -79,7 +94,7 @@ const Stations = () => {
   });
 
   const handleLocationSelect = (location: string, coords: { lat: number; lng: number }, radius?: number) => {
-    console.log("Location selected:", location, coords, "radius:", radius);
+    debugLog("Location selected:", { location, coords, radius });
     setCoordinates(coords);
     setSearchRadius(radius || 50);
     setSearchInitiated(true);
