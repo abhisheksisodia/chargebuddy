@@ -37,7 +37,7 @@ const radiusOptions = [
 export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
   const [location, setLocation] = useState("");
   const [open, setOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]); // Initialize with empty array
   const [radius, setRadius] = useState("50"); // Default to 50km
   const { toast } = useToast();
 
@@ -59,7 +59,6 @@ export const LocationSearch = ({ onLocationSelect }: LocationSearchProps) => {
         return;
       }
 
-      // Add more detailed logging
       debugLog('Raw geocode response:', geocodeData);
 
       // Initialize an empty array for valid results
