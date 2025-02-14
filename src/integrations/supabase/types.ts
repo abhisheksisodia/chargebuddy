@@ -9,92 +9,35 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      charging_locations: {
+      favorite_stations: {
         Row: {
           address: string
           created_at: string
           id: string
-          is_default: boolean | null
-          location_type: string | null
+          latitude: number
+          longitude: number
           name: string
-          notes: string | null
-          off_peak_rate: number | null
-          peak_hours: Json | null
-          peak_rate: number | null
-          rate_periods: Json | null
-          summer_rate: number | null
-          super_off_peak_rate: number | null
-          updated_at: string
+          station_id: number
           user_id: string
-          winter_rate: number | null
         }
         Insert: {
           address: string
           created_at?: string
           id?: string
-          is_default?: boolean | null
-          location_type?: string | null
+          latitude: number
+          longitude: number
           name: string
-          notes?: string | null
-          off_peak_rate?: number | null
-          peak_hours?: Json | null
-          peak_rate?: number | null
-          rate_periods?: Json | null
-          summer_rate?: number | null
-          super_off_peak_rate?: number | null
-          updated_at?: string
+          station_id: number
           user_id: string
-          winter_rate?: number | null
         }
         Update: {
           address?: string
           created_at?: string
           id?: string
-          is_default?: boolean | null
-          location_type?: string | null
+          latitude?: number
+          longitude?: number
           name?: string
-          notes?: string | null
-          off_peak_rate?: number | null
-          peak_hours?: Json | null
-          peak_rate?: number | null
-          rate_periods?: Json | null
-          summer_rate?: number | null
-          super_off_peak_rate?: number | null
-          updated_at?: string
-          user_id?: string
-          winter_rate?: number | null
-        }
-        Relationships: []
-      }
-      charging_sessions: {
-        Row: {
-          cost: number
-          created_at: string
-          date: string
-          energy_added: number
-          id: string
-          location: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          cost: number
-          created_at?: string
-          date: string
-          energy_added: number
-          id?: string
-          location: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          cost?: number
-          created_at?: string
-          date?: string
-          energy_added?: number
-          id?: string
-          location?: string
-          updated_at?: string
+          station_id?: number
           user_id?: string
         }
         Relationships: []
@@ -126,39 +69,36 @@ export type Database = {
         }
         Relationships: []
       }
-      trips: {
+      station_reviews: {
         Row: {
-          created_at: string
-          date: string
-          distance: number
-          end_location: string
-          energy_used: number
+          comment: string | null
           id: string
-          start_location: string
-          updated_at: string
+          price_per_kwh: number | null
+          rating: number
+          reviewed_at: string
+          station_id: number
           user_id: string
+          working_status: boolean | null
         }
         Insert: {
-          created_at?: string
-          date: string
-          distance: number
-          end_location: string
-          energy_used: number
+          comment?: string | null
           id?: string
-          start_location: string
-          updated_at?: string
+          price_per_kwh?: number | null
+          rating: number
+          reviewed_at?: string
+          station_id: number
           user_id: string
+          working_status?: boolean | null
         }
         Update: {
-          created_at?: string
-          date?: string
-          distance?: number
-          end_location?: string
-          energy_used?: number
+          comment?: string | null
           id?: string
-          start_location?: string
-          updated_at?: string
+          price_per_kwh?: number | null
+          rating?: number
+          reviewed_at?: string
+          station_id?: number
           user_id?: string
+          working_status?: boolean | null
         }
         Relationships: []
       }
